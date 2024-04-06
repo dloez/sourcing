@@ -1,12 +1,11 @@
 from typing import List
 
-from typing_extensions import Annotated
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from pydantic.functional_validators import BeforeValidator
+from typing_extensions import Annotated
 
 from sourcing.source.models import SourceModel
 from sourcing.user.db import users_collection
-
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
 
