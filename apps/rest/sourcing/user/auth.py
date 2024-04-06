@@ -1,31 +1,22 @@
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, status
-from fastapi.security import OAuth2PasswordBearer
 from pydantic import EmailStr
-from passlib.context import CryptContext
-from jose import jwt, JWTError
+from jose import JWTError
 
-from sourcing.config import JWT_ALGORITHM, ACCESS_SECRET_KEY
 from sourcing.user.models import User
 from sourcing.security.models import TokenData
-
-
-cryptContext = CryptContext(schemes=["bcrypt"], deprecated="auto")
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+from sourcing.security.token_factory import oauth2_scheme, decode_access_token
+from sourcing.security.crypto import verify_password
 
 
 async def authenticate_user(email: EmailStr, password: str) -> User | None:
     user = await User.find_by_email(email)
     if not user:
         return None
-    if not cryptContext.verify(password, user.password):
+    if not verify_password(password, user.password):
         return None
     return user
-
-
-def hash_password(password: str) -> str:
-    return cryptContext.hash(password)
 
 
 async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> User:
@@ -35,7 +26,7 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> Use
         headers={"WWW-Authenticate": "Bearer"},
     )
     try:
-        payload = jwt.decode(token, ACCESS_SECRET_KEY, algorithms=[JWT_ALGORITHM])
+        payload = decode_access_token(token)
         username: str = payload.get("sub")
         if username is None:
             raise credentials_exception

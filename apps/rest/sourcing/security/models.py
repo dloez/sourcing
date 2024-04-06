@@ -1,5 +1,15 @@
-from pydantic import BaseModel, ConfigDict
-from bson import ObjectId
+from enum import Enum
+from typing import Optional, List
+from datetime import datetime
+
+from pydantic import BaseModel, EmailStr
+
+from sourcing.security.db import refresh_tokens_collection
+
+
+class GrantType(str, Enum):
+    password = "password"
+    refresh_token = "refresh_token"
 
 
 class Token(BaseModel):
@@ -12,9 +22,27 @@ class TokenData(BaseModel):
     username: str | None = None
 
 
-class RefreshToken(BaseModel):
+class RegisteredRefreshToken(BaseModel):
+    access_token: str
     refresh_token: str
-    user_id: ObjectId
-    model_config = ConfigDict(
-        arbitrary_types_allowed=True
-    )
+    expires_in: datetime
+    user_email: EmailStr
+
+    async def get_and_delete_by_refresh_token(refresh_token: str) -> 'RegisteredRefreshToken':
+        return await refresh_tokens_collection.find_one_and_delete({"refresh_token": refresh_token})
+
+
+class TokenRequest(BaseModel):
+    refresh_token: Optional[str] = None
+    username: Optional[str] = None
+    password: Optional[str] = None
+    grant_type: GrantType
+
+
+class TokenValidationRequest(BaseModel):
+    access_token: str | None = None
+    refresh_token: str | None = None
+
+
+class TokenValidationResponse(BaseModel):
+    expires_in: datetime

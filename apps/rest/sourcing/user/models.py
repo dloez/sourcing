@@ -18,12 +18,7 @@ class RegisterUser(BaseModel):
     disabled: bool = False
 
 
-class LoginUser(BaseModel):
-    name: str = Field(...)
-    password: str = Field(...)
-
-
-class ReturnUser(BaseModel):
+class ResponseUser(BaseModel):
     id: PyObjectId = Field(...)
     name: str = Field(...)
     email: EmailStr = Field(...)

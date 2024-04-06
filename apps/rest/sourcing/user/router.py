@@ -1,13 +1,12 @@
 from typing import Annotated
 
 from fastapi import APIRouter, status, HTTPException, Depends
-from fastapi.security import OAuth2PasswordRequestForm
 
-from sourcing.user.models import RegisterUser, ReturnUser, User
+
+from sourcing.user.models import RegisterUser, ResponseUser, User
 from sourcing.user.db import users_collection
-from sourcing.user.auth import authenticate_user, hash_password, get_current_active_user
-from sourcing.security.models import Token
-from sourcing.security.token_factory import create_token
+from sourcing.user.auth import get_current_active_user
+from sourcing.security.crypto import hash_password
 
 
 router = APIRouter(prefix="/users")
@@ -15,11 +14,11 @@ router = APIRouter(prefix="/users")
 
 @router.post(
     "/register",
-    response_model=ReturnUser,
+    response_model=ResponseUser,
     status_code=status.HTTP_201_CREATED,
     response_model_by_alias=False
 )
-async def register(user: RegisterUser) -> ReturnUser:
+async def register(user: RegisterUser) -> ResponseUser:
     if await User.find_by_email(user.email):
         raise HTTPException(status_code=409, detail=f"User '{user.email}' already exists")
     user.password = hash_password(user.password)
@@ -34,28 +33,12 @@ async def register(user: RegisterUser) -> ReturnUser:
     return User(**created_user)
 
 
-@router.post(
-    "/login",
-    response_model=Token
-)
-async def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
-) -> Token:
-    user = await authenticate_user(form_data.username, form_data.password)
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    return create_token(data={"sub": user.email})
-
 @router.get(
     "/me",
-    response_model=ReturnUser,
+    response_model=ResponseUser,
     response_model_by_alias=False
 )
 async def me(
     current_user: Annotated[User, Depends(get_current_active_user)]
-) -> ReturnUser:
+) -> ResponseUser:
     return current_user
