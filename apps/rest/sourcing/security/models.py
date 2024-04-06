@@ -1,6 +1,6 @@
-from enum import Enum
-from typing import Optional, List
 from datetime import datetime
+from enum import Enum
+from typing import Optional
 
 from pydantic import BaseModel, EmailStr
 
@@ -28,8 +28,12 @@ class RegisteredRefreshToken(BaseModel):
     expires_in: datetime
     user_email: EmailStr
 
-    async def get_and_delete_by_refresh_token(refresh_token: str) -> 'RegisteredRefreshToken':
-        return await refresh_tokens_collection.find_one_and_delete({"refresh_token": refresh_token})
+    async def get_and_delete_by_refresh_token(
+        refresh_token: str,
+    ) -> "RegisteredRefreshToken":
+        return await refresh_tokens_collection.find_one_and_delete(
+            {"refresh_token": refresh_token}
+        )
 
 
 class TokenRequest(BaseModel):

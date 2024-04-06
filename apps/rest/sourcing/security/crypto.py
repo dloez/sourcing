@@ -8,5 +8,5 @@ def hash_password(password: str) -> str:
     return _crypt_context.hash(password)
 
 
-def verify_password(password: str, hashed_password: str) -> bool:   
+def verify_password(password: str, hashed_password: str) -> bool:
     return _crypt_context.verify(password, hashed_password)
