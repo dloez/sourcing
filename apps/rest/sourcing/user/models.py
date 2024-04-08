@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 from pydantic.functional_validators import BeforeValidator
 from typing_extensions import Annotated
 
-from sourcing.source.models import SourceModel
+from sourcing.source.models import Source
 from sourcing.user.db import users_collection
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
@@ -14,21 +14,21 @@ class RegisterUser(BaseModel):
     name: str = Field(...)
     email: EmailStr = Field(...)
     password: str = Field(...)
-    disabled: bool = False
+    disabled: bool = Field(default=False)
 
 
 class ResponseUser(BaseModel):
-    id: PyObjectId = Field(...)
-    name: str = Field(...)
-    email: EmailStr = Field(...)
-    sources: List[SourceModel] = Field(default=[])
+    id: PyObjectId
+    name: str
+    email: EmailStr
+    sources: List[Source] = Field(default=[])
 
 
 class User(BaseModel):
     id: PyObjectId = Field(alias="_id")
     name: str = Field(...)
     email: EmailStr = Field(...)
-    sources: List[SourceModel] = Field(default=[])
+    sources: List[Source] = Field(default=[])
     password: str = Field(...)
     disabled: bool = Field(default=False)
 

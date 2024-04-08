@@ -2,7 +2,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from sourcing.security.db import refresh_tokens_collection
 
@@ -23,10 +23,10 @@ class TokenData(BaseModel):
 
 
 class RegisteredRefreshToken(BaseModel):
-    access_token: str
-    refresh_token: str
-    expires_in: datetime
-    user_email: EmailStr
+    access_token: str = Field(...)
+    refresh_token: str = Field(...)
+    expires_in: datetime = Field(...)
+    user_email: EmailStr = Field(...)
 
     async def get_and_delete_by_refresh_token(
         refresh_token: str,

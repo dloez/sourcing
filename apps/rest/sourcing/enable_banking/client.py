@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -12,6 +12,13 @@ class EnableBankingClient:
     def __init__(self, private_key_file_path: Path, application_id: str):
         self._private_key = private_key_file_path.read_text()
         self._application_id = application_id
+        self._session = None
+
+    async def clean_up(self):
+        await self._session.close()
+        self._session = None
+
+    def startup(self):
         self._session = ClientSession()
 
     async def _request(self, method: str, url: str, **kwargs: Any) -> Any:
@@ -40,6 +47,19 @@ class EnableBankingClient:
     async def get_aspsps(self, country_code: str):
         return await self._request("GET", f"{BASE_URL}/aspsps?country={country_code}")
 
-    async def clean_up(self):
-        await self._session.close()
-        self._session = None
+    async def create_auth_session(
+        self, bank_name: str, bank_country: str, redirect_url: str, state: str = ""
+    ):
+        body = {
+            "access": {
+                "valid_until": (datetime.now(UTC) + timedelta(days=10)).isoformat()
+            },
+            "aspsp": {"name": bank_name, "country": bank_country},
+            "redirect_url": redirect_url,
+            "psu_type": "personal",
+            "state": state,
+        }
+        return await self._request("POST", f"{BASE_URL}/auth", json=body)
+
+    async def create_session(self, code: str):
+        return await self._request("POST", f"{BASE_URL}/sessions", json={"code": code})
