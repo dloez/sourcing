@@ -1,5 +1,6 @@
 import asyncio
 
+from celery import current_app as celery
 from motor import motor_asyncio
 from sourcing.config import (
     EB_APPLICATION_ID,
@@ -17,7 +18,7 @@ SUPPORTED_ASPSPS = {
 }
 
 
-async def main():
+async def get_store_aspsps():
     db_client = motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
     db = db_client.get_database("sourcing")
     aspsps_collection = db.get_collection("apspsps")
@@ -49,11 +50,16 @@ async def main():
                 )
                 if not found_aspsp:
                     await aspsps_collection.insert_one(
-                        clean_aspsp.model_dump(), exclude=["id"]
+                        clean_aspsp.model_dump(exclude=["id"]),
                     )
     finally:
         await client.clean_up()
 
 
+@celery.task(name="wrap_get_store_aspsps")
+def wrap_get_store_aspsps():
+    asyncio.run(get_store_aspsps())
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(get_store_aspsps())

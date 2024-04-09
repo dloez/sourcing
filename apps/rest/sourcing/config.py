@@ -18,6 +18,7 @@ load_dotenv(f"{ENVIRONMENT}.env")
 
 # DB Settings
 MONGODB_URL = os.environ["MONGODB_URL"]
+REDIS_URL = os.environ["REDIS_URL"]
 
 # Security Settings
 ACCESS_SECRET_KEY = os.environ["ACCESS_SECRET_KEY"]

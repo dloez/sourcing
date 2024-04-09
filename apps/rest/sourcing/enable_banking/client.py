@@ -63,3 +63,6 @@ class EnableBankingClient:
 
     async def create_session(self, code: str):
         return await self._request("POST", f"{BASE_URL}/sessions", json={"code": code})
+
+    async def get_account_balances(self, account_id: str):
+        return await self._request("GET", f"{BASE_URL}/accounts/{account_id}/balances")

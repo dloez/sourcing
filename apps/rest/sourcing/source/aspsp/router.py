@@ -65,7 +65,7 @@ async def create_session(
 
         found = False
         for s in current_user.sources:
-            if s.kind != SourceKind.bank:
+            if s.kind != SourceKind.BANK_ACCOUNT:
                 continue
 
             if s.details.eb_id_hash != source.details.eb_id_hash:

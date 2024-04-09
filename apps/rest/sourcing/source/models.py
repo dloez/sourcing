@@ -1,3 +1,4 @@
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Optional
 
@@ -32,9 +33,31 @@ class CryptoWalletDetails(BaseModel):
     coin: str = Field(...)
 
 
+class BankAccountBalance(BaseModel):
+    id: PyObjectId = Field(alias="_id", default=None)
+    amount: float = Field(...)
+    source_id: PyObjectId = Field(...)
+    date: datetime = Field(default=datetime.now(tz=UTC))
+    name: str = Field(...)
+
+    def to_nested(self) -> "NestedBankAccountBalance":
+        return NestedBankAccountBalance(
+            amount=self.amount,
+            date=self.date,
+            name=self.name,
+        )
+
+
+class NestedBankAccountBalance(BaseModel):
+    amount: float = Field(...)
+    date: datetime = Field(default=datetime.now(tz=UTC))
+    name: str = Field(...)
+
+
 class Source(BaseModel):
     kind: SourceKind = Field(...)
     details: BankAccountDetails | CryptoWalletDetails = Field(...)
+    latest_balances: list[NestedBankAccountBalance] = Field(default=[])
     model_config: ConfigDict = ConfigDict(use_enum_values=True)
 
     @model_validator(mode="after")
@@ -42,10 +65,12 @@ class Source(BaseModel):
         kind = self.kind
         details = self.details
 
-        if kind == SourceKind.bank and not isinstance(details, BankAccountDetails):
+        if kind == SourceKind.BANK_ACCOUNT and not isinstance(
+            details, BankAccountDetails
+        ):
             raise ValueError("details must be a BankDetails type for bank kind")
 
-        if kind == SourceKind.crypto_wallet and not isinstance(
+        if kind == SourceKind.CRYPTO_WALLET and not isinstance(
             details, CryptoWalletDetails
         ):
             raise ValueError(
