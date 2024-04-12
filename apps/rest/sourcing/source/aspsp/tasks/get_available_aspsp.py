@@ -9,7 +9,7 @@ from sourcing.config import (
     MONGODB_URL,
     Environment,
 )
-from sourcing.enable_banking.client import EnableBankingClient
+from sourcing.source.aspsp.enable_banking import EnableBankingClient
 from sourcing.source.aspsp.models import ASPSP
 
 SUPPORTED_ASPSPS = {
@@ -38,9 +38,9 @@ async def get_store_aspsps():
             if custom_id in supported_aspsps:
                 clean_aspsp = ASPSP(
                     maximum_consent_validity_seconds=aspsp["maximum_consent_validity"],
-                    bank_name=aspsp["name"],
-                    bank_country=aspsp["country"],
-                    logo_uri=aspsp["logo"],
+                    name=aspsp["name"],
+                    country=aspsp["country"],
+                    logo_url=aspsp["logo"],
                     custom_id=custom_id,
                 )
 

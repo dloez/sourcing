@@ -36,17 +36,17 @@ class RegisteredRefreshToken(BaseModel):
         )
 
 
-class TokenRequest(BaseModel):
+class RequestToken(BaseModel):
     refresh_token: Optional[str] = None
     username: Optional[str] = None
     password: Optional[str] = None
     grant_type: GrantType
 
 
-class TokenValidationRequest(BaseModel):
+class RequestTokenValidation(BaseModel):
     access_token: str | None = None
     refresh_token: str | None = None
 
 
-class TokenValidationResponse(BaseModel):
+class ResponseTokenValidation(BaseModel):
     expires_in: datetime

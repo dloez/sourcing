@@ -10,7 +10,7 @@ PyObjectId = Annotated[str, BeforeValidator(str)]
 
 
 class SourceKind(Enum):
-    BANK_ACCOUNT = "bank_account"
+    ASPSP = "aspsp"
     CRYPTO_WALLET = "crypto_wallet"
 
     def __eq__(self, other):
@@ -19,7 +19,7 @@ class SourceKind(Enum):
         return super().__eq__(other)
 
 
-class BankAccountDetails(BaseModel):
+class ASPSPSourceDetails(BaseModel):
     iban: Optional[str] = Field(default=None)
     currency: str = Field(...)
     name: str = Field(...)
@@ -28,27 +28,33 @@ class BankAccountDetails(BaseModel):
     eb_id_hash: str = Field(...)
 
 
-class CryptoWalletDetails(BaseModel):
+class ResponseASPSPSourceDetails(BaseModel):
+    iban: str
+    currency: str
+    name: str
+
+
+class CryptoWalletSourceDetails(BaseModel):
     wallet_address: str = Field(...)
     coin: str = Field(...)
 
 
-class BankAccountBalance(BaseModel):
+class Balance(BaseModel):
     id: PyObjectId = Field(alias="_id", default=None)
     amount: float = Field(...)
     source_id: PyObjectId = Field(...)
     date: datetime = Field(default=datetime.now(tz=UTC))
     name: str = Field(...)
 
-    def to_nested(self) -> "NestedBankAccountBalance":
-        return NestedBankAccountBalance(
+    def to_nested(self) -> "NestedBalance":
+        return NestedBalance(
             amount=self.amount,
             date=self.date,
             name=self.name,
         )
 
 
-class NestedBankAccountBalance(BaseModel):
+class NestedBalance(BaseModel):
     amount: float = Field(...)
     date: datetime = Field(default=datetime.now(tz=UTC))
     name: str = Field(...)
@@ -56,24 +62,28 @@ class NestedBankAccountBalance(BaseModel):
 
 class Source(BaseModel):
     kind: SourceKind = Field(...)
-    details: BankAccountDetails | CryptoWalletDetails = Field(...)
-    latest_balances: list[NestedBankAccountBalance] = Field(default=[])
+    details: ASPSPSourceDetails | CryptoWalletSourceDetails = Field(...)
+    latest_balances: list[NestedBalance] = Field(default=[])
     model_config: ConfigDict = ConfigDict(use_enum_values=True)
 
     @model_validator(mode="after")
     def check_details_type(self) -> "Source":
-        kind = self.kind
-        details = self.details
-
-        if kind == SourceKind.BANK_ACCOUNT and not isinstance(
-            details, BankAccountDetails
+        if self.kind == SourceKind.ASPSP and not isinstance(
+            self.details, ASPSPSourceDetails
         ):
-            raise ValueError("details must be a BankDetails type for bank kind")
+            raise ValueError("details must be a ASPSPSourceDetails type for ASPSP kind")
 
-        if kind == SourceKind.CRYPTO_WALLET and not isinstance(
-            details, CryptoWalletDetails
+        if self.kind == SourceKind.CRYPTO_WALLET and not isinstance(
+            self.details, CryptoWalletSourceDetails
         ):
             raise ValueError(
-                "details must be a CryptoWalletDetails type for crypto_wallet kind"
+                "details must be a CryptoWalletSourceDetails type for crypto_wallet kind"
             )
         return self
+
+
+class ResponseSource(BaseModel):
+    kind: SourceKind
+    details: ResponseASPSPSourceDetails | CryptoWalletSourceDetails
+    latest_balances: list[NestedBalance]
+    model_config: ConfigDict = ConfigDict(use_enum_values=True)

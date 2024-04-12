@@ -9,9 +9,10 @@ from sourcing.source.aspsp.models import (
     ASPSP,
     ASPSPAuthRequest,
     ASPSPAuthResponse,
+    ASPSPResponse,
     ASPSPSessionRequest,
 )
-from sourcing.source.models import BankAccountDetails, Source, SourceKind
+from sourcing.source.models import ASPSPSourceDetails, Source, SourceKind
 from sourcing.user.auth import get_current_active_user
 from sourcing.user.db import users_collection
 from sourcing.user.models import User
@@ -22,10 +23,11 @@ router = APIRouter(
 )
 
 
-@router.get("/", response_model=List[ASPSP], response_model_by_alias=False)
+@router.get("/", response_model=List[ASPSPResponse], response_model_by_alias=False)
 async def list():
     aspsps_collection.find()
-    return await aspsps_collection.find().to_list(None)
+    aspsps = [ASPSP(**aspsp) async for aspsp in aspsps_collection.find()]
+    return aspsps
 
 
 @router.post("/auth", response_model=ASPSPAuthResponse)
@@ -35,9 +37,9 @@ async def auth_to_aspsp(auth_to_aspsp: ASPSPAuthRequest):
         return {"error": "ASPSP not found"}
     aspsp = ASPSP(**aspsp)
     return await eb.create_auth_session(
-        bank_name=aspsp.bank_name,
-        bank_country=aspsp.bank_country,
-        redirect_url=auth_to_aspsp.redirect_uri,
+        name=aspsp.name,
+        country=aspsp.country,
+        redirect_url=auth_to_aspsp.redirect_url,
     )
 
 
@@ -52,8 +54,8 @@ async def create_session(
         if account["account_id"]:
             iban = account["account_id"].get("iban", None)
         source = Source(
-            kind=SourceKind.BANK_ACCOUNT,
-            details=BankAccountDetails(
+            kind=SourceKind.ASPSP,
+            details=ASPSPSourceDetails(
                 iban=iban,
                 currency=account["currency"],
                 name=account["name"],
@@ -65,7 +67,7 @@ async def create_session(
 
         found = False
         for s in current_user.sources:
-            if s.kind != SourceKind.BANK_ACCOUNT:
+            if s.kind != SourceKind.ASPSP:
                 continue
 
             if s.details.eb_id_hash != source.details.eb_id_hash:

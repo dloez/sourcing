@@ -1,27 +1,26 @@
-from fastapi import APIRouter, status, HTTPException
-from jose import jwt, JWTError
+from fastapi import APIRouter, HTTPException, status
+from jose import JWTError, jwt
 
+from sourcing.security.db import refresh_tokens_collection
 from sourcing.security.models import (
-    Token,
-    TokenRequest,
-    TokenValidationResponse,
-    TokenValidationRequest,
     RegisteredRefreshToken,
+    RequestToken,
+    RequestTokenValidation,
+    ResponseTokenValidation,
+    Token,
 )
 from sourcing.security.token_factory import (
     create_token,
-    decode_refresh_token,
     decode_access_token,
+    decode_refresh_token,
     get_fields_from_refresh_token,
 )
 from sourcing.user.auth import authenticate_user
-from sourcing.security.db import refresh_tokens_collection
-
 
 router = APIRouter()
 
 
-async def _get_user_token(token_request: TokenRequest) -> Token:
+async def _get_user_token(token_request: RequestToken) -> Token:
     if not token_request.username or not token_request.password:
         raise HTTPException(
             status_code=400, detail="username and password are required"
@@ -37,7 +36,7 @@ async def _get_user_token(token_request: TokenRequest) -> Token:
     return create_token(data={"sub": user.email})
 
 
-async def _get_refresh_token(token_request: TokenRequest) -> Token:
+async def _get_refresh_token(token_request: RequestToken) -> Token:
     if not token_request.refresh_token:
         raise HTTPException(status_code=400, detail="refresh_token is required")
 
@@ -53,7 +52,7 @@ async def _get_refresh_token(token_request: TokenRequest) -> Token:
 
 @router.post("/token", response_model=Token)
 async def token(
-    token_request: TokenRequest,
+    token_request: RequestToken,
 ) -> Token:
     if token_request.grant_type == "password":
         token = await _get_user_token(token_request)
@@ -77,21 +76,21 @@ async def token(
     return token
 
 
-@router.post("/token/verify", response_model=TokenValidationResponse)
+@router.post("/token/verify", response_model=ResponseTokenValidation)
 async def verify_token(
-    token_validation_request: TokenValidationRequest,
-) -> TokenValidationResponse:
+    token_validation_request: RequestTokenValidation,
+) -> ResponseTokenValidation:
     if token_validation_request.access_token:
         try:
             payload = decode_access_token(token_validation_request.access_token)
-            return TokenValidationResponse(expires_in=payload.get("exp"))
+            return ResponseTokenValidation(expires_in=payload.get("exp"))
         except JWTError:
             raise HTTPException(status_code=400, detail="Invalid access token")
 
     if token_validation_request.refresh_token:
         try:
             payload = decode_refresh_token(token_validation_request.refresh_token)
-            return TokenValidationResponse(expires_in=payload.get("exp"))
+            return ResponseTokenValidation(expires_in=payload.get("exp"))
         except JWTError:
             raise HTTPException(status_code=400, detail="Invalid refresh token")
     raise HTTPException(

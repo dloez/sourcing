@@ -4,7 +4,7 @@ from pydantic import BaseModel, EmailStr, Field
 from pydantic.functional_validators import BeforeValidator
 from typing_extensions import Annotated
 
-from sourcing.source.models import Source
+from sourcing.source.models import ResponseSource, Source
 from sourcing.user.db import users_collection
 
 PyObjectId = Annotated[str, BeforeValidator(str)]
@@ -21,7 +21,7 @@ class ResponseUser(BaseModel):
     id: PyObjectId
     name: str
     email: EmailStr
-    sources: List[Source] = Field(default=[])
+    sources: List[ResponseSource] = Field(default=[])
 
 
 class User(BaseModel):

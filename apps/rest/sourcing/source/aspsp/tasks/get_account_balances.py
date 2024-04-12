@@ -9,11 +9,8 @@ from sourcing.config import (
     MONGODB_URL,
     Environment,
 )
-from sourcing.enable_banking.client import EnableBankingClient
-from sourcing.source.models import (
-    BankAccountBalance,
-    SourceKind,
-)
+from sourcing.source.aspsp.enable_banking import EnableBankingClient
+from sourcing.source.models import Balance, SourceKind
 from sourcing.user.models import User
 
 SUPPORTED_ASPSPS = {
@@ -22,7 +19,7 @@ SUPPORTED_ASPSPS = {
 }
 
 
-async def get_bank_account_balances(eb_uid: str, eb_id_hash: str, user_id: str):
+async def get_aspsp_balances(eb_uid: str, eb_id_hash: str, user_id: str):
     db_client = motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
     db = db_client.get_database("sourcing")
     users_collection = db.get_collection("users")
@@ -36,31 +33,34 @@ async def get_bank_account_balances(eb_uid: str, eb_id_hash: str, user_id: str):
     try:
         balances = await client.get_account_balances(eb_uid)
         for balance in balances.get("balances", []):
-            bank_account_balance = BankAccountBalance(
+            balance = Balance(
                 amount=balance.get("balance_amount", {}).get("amount", 0),
                 source_id=eb_id_hash,
                 name=balance["name"],
             )
             await balances_collection.insert_one(
-                bank_account_balance.model_dump(exclude=["id"]),
+                balance.model_dump(),
             )
 
-            updated = await users_collection.find_one_and_update(
+            update_result = await users_collection.update_one(
                 {
                     "_id": ObjectId(user_id),
+                    "sources.details.eb_id_hash": eb_id_hash,
+                    "sources.latest_balances.name": balance.name,
                 },
                 {
                     "$set": {
-                        "sources.$[source].latest_balances.$[balance]": bank_account_balance.to_nested().model_dump()
+                        "sources.$[src].latest_balances.$[bal].amount": balance.amount,
+                        "sources.$[src].latest_balances.$[bal].date": balance.date,
                     }
                 },
                 array_filters=[
-                    {"source.details.eb_id_hash": eb_id_hash},
-                    {"balance.name": bank_account_balance.name},
+                    {"src.details.eb_id_hash": eb_id_hash},
+                    {"bal.name": balance.name},
                 ],
             )
 
-            if not updated:
+            if update_result.modified_count == 0:
                 await users_collection.update_one(
                     {
                         "_id": ObjectId(user_id),
@@ -68,7 +68,7 @@ async def get_bank_account_balances(eb_uid: str, eb_id_hash: str, user_id: str):
                     },
                     {
                         "$push": {
-                            "sources.$.latest_balances": bank_account_balance.to_nested().model_dump()
+                            "sources.$.latest_balances": balance.to_nested().model_dump()
                         }
                     },
                 )
@@ -76,9 +76,9 @@ async def get_bank_account_balances(eb_uid: str, eb_id_hash: str, user_id: str):
         await client.clean_up()
 
 
-@celery.task(name="wrap_get_bank_account_balances")
-def wrap_get_bank_account_balances(eb_uid: str, eb_id_hash: str, user_id: str):
-    asyncio.run(get_bank_account_balances(eb_uid, eb_id_hash, user_id))
+@celery.task(name="wrap_get_aspsp_balances")
+def wrap_get_aspsp_balances(eb_uid: str, eb_id_hash: str, user_id: str):
+    asyncio.run(get_aspsp_balances(eb_uid, eb_id_hash, user_id))
 
 
 async def spawn_users_balance_collectors(test=False):
@@ -89,10 +89,10 @@ async def spawn_users_balance_collectors(test=False):
     async for user in users_collection.find({}):
         user = User(**user)
         for source in user.sources:
-            if source.kind == SourceKind.BANK_ACCOUNT:
+            if source.kind == SourceKind.ASPSP:
                 if not test:
                     celery.send_task(
-                        "wrap_get_bank_account_balances",
+                        "wrap_get_aspsp_balances",
                         args=(
                             source.details.eb_uid,
                             source.details.eb_id_hash,
@@ -100,7 +100,7 @@ async def spawn_users_balance_collectors(test=False):
                         ),
                     )
                 else:
-                    await get_bank_account_balances(
+                    await get_aspsp_balances(
                         source.details.eb_uid, source.details.eb_id_hash, user.id
                     )
 

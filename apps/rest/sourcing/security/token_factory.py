@@ -4,16 +4,14 @@ from typing import List
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 
-
 from sourcing.config import (
-    ACCESS_TOKEN_EXPIRE_MINUTES,
-    REFRESH_TOKEN_EXPIRE_MINUTES,
     ACCESS_SECRET_KEY,
-    REFRESH_SECRET_KEY,
+    ACCESS_TOKEN_EXPIRE_MINUTES,
     JWT_ALGORITHM,
+    REFRESH_SECRET_KEY,
+    REFRESH_TOKEN_EXPIRE_MINUTES,
 )
 from sourcing.security.models import Token
-
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
