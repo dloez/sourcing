@@ -1,4 +1,5 @@
 import asyncio
+from typing import List
 
 from bson import ObjectId
 from celery import current_app as celery
@@ -19,7 +20,9 @@ SUPPORTED_ASPSPS = {
 }
 
 
-async def get_aspsp_balances(eb_uid: str, eb_id_hash: str, user_id: str):
+async def _get_aspsp_balances(
+    source_id: str, eb_uid: str, eb_id_hash: str, user_id: str
+):
     db_client = motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
     db = db_client.get_database("sourcing")
     users_collection = db.get_collection("users")
@@ -31,57 +34,42 @@ async def get_aspsp_balances(eb_uid: str, eb_id_hash: str, user_id: str):
     client.startup()
 
     try:
-        balances = await client.get_account_balances(eb_uid)
-        for balance in balances.get("balances", []):
+        eb_balances = await client.get_account_balances(eb_uid)
+        balances: List[dict] = []
+        for eb_balance in eb_balances.get("balances", []):
             balance = Balance(
-                amount=balance.get("balance_amount", {}).get("amount", 0),
-                source_id=eb_id_hash,
-                name=balance["name"],
+                amount=eb_balance.get("balance_amount", {}).get("amount", 0),
+                source_id=source_id,
+                name=eb_balance["name"],
             )
             await balances_collection.insert_one(
-                balance.model_dump(),
+                balance.model_dump(exclude=["id"]),
             )
+            balances.append(balance.to_nested().model_dump())
 
-            update_result = await users_collection.update_one(
-                {
-                    "_id": ObjectId(user_id),
-                    "sources.details.eb_id_hash": eb_id_hash,
-                    "sources.latest_balances.name": balance.name,
-                },
-                {
-                    "$set": {
-                        "sources.$[src].latest_balances.$[bal].amount": balance.amount,
-                        "sources.$[src].latest_balances.$[bal].date": balance.date,
-                    }
-                },
-                array_filters=[
-                    {"src.details.eb_id_hash": eb_id_hash},
-                    {"bal.name": balance.name},
-                ],
-            )
-
-            if update_result.modified_count == 0:
-                await users_collection.update_one(
-                    {
-                        "_id": ObjectId(user_id),
-                        "sources.details.eb_id_hash": eb_id_hash,
-                    },
-                    {
-                        "$push": {
-                            "sources.$.latest_balances": balance.to_nested().model_dump()
-                        }
-                    },
-                )
+        await users_collection.update_one(
+            {
+                "_id": ObjectId(user_id),
+                "sources.id": ObjectId(source_id),
+            },
+            {
+                "$set": {
+                    "sources.$.latest_balances": balances,
+                }
+            },
+        )
     finally:
         await client.clean_up()
 
 
-@celery.task(name="wrap_get_aspsp_balances")
-def wrap_get_aspsp_balances(eb_uid: str, eb_id_hash: str, user_id: str):
-    asyncio.run(get_aspsp_balances(eb_uid, eb_id_hash, user_id))
+@celery.task(name="_wrap_get_aspsp_balances")
+def _wrap_get_aspsp_balances(
+    source_id: str, eb_uid: str, eb_id_hash: str, user_id: str
+):
+    asyncio.run(_get_aspsp_balances(source_id, eb_uid, eb_id_hash, user_id))
 
 
-async def spawn_users_balance_collectors(test=False):
+async def spawn_users_aspsps_balance_collectors(test=False):
     db_client = motor_asyncio.AsyncIOMotorClient(MONGODB_URL)
     db = db_client.get_database("sourcing")
     users_collection = db.get_collection("users")
@@ -89,26 +77,32 @@ async def spawn_users_balance_collectors(test=False):
     async for user in users_collection.find({}):
         user = User(**user)
         for source in user.sources:
-            if source.kind == SourceKind.ASPSP:
-                if not test:
-                    celery.send_task(
-                        "wrap_get_aspsp_balances",
-                        args=(
-                            source.details.eb_uid,
-                            source.details.eb_id_hash,
-                            user.id,
-                        ),
-                    )
-                else:
-                    await get_aspsp_balances(
-                        source.details.eb_uid, source.details.eb_id_hash, user.id
-                    )
+            if source.kind != SourceKind.ASPSP:
+                continue
+
+            if not test:
+                celery.send_task(
+                    "_wrap_get_aspsp_balances",
+                    args=(
+                        str(source.id),
+                        source.details.eb_uid,
+                        source.details.eb_id_hash,
+                        str(user.id),
+                    ),
+                )
+            else:
+                await _get_aspsp_balances(
+                    str(source.id),
+                    source.details.eb_uid,
+                    source.details.eb_id_hash,
+                    str(user.id),
+                )
 
 
-@celery.task(name="wrap_spawn_users_balance_collectors")
-def wrap_spawn_users_balance_collectors():
-    asyncio.run(spawn_users_balance_collectors())
+@celery.task(name="wrap_spawn_users_aspsps_balance_collectors")
+def wrap_spawn_users_aspsps_balance_collectors():
+    asyncio.run(spawn_users_aspsps_balance_collectors())
 
 
 if __name__ == "__main__":
-    asyncio.run(spawn_users_balance_collectors(test=True))
+    asyncio.run(spawn_users_aspsps_balance_collectors(test=True))

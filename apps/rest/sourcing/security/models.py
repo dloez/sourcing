@@ -23,10 +23,10 @@ class TokenData(BaseModel):
 
 
 class RegisteredRefreshToken(BaseModel):
-    access_token: str = Field(...)
-    refresh_token: str = Field(...)
-    expires_in: datetime = Field(...)
-    user_email: EmailStr = Field(...)
+    access_token: str = Field()
+    refresh_token: str = Field()
+    expires_in: datetime = Field()
+    user_email: EmailStr = Field()
 
     async def get_and_delete_by_refresh_token(
         refresh_token: str,

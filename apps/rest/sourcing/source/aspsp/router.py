@@ -1,7 +1,6 @@
 from typing import List
 
-from bson import ObjectId
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 
 from sourcing.source.aspsp.db import aspsps_collection
 from sourcing.source.aspsp.enable_banking import client as eb
@@ -11,15 +10,15 @@ from sourcing.source.aspsp.models import (
     ASPSPAuthResponse,
     ASPSPResponse,
     ASPSPSessionRequest,
+    ASPSPSourceDetails,
 )
-from sourcing.source.models import ASPSPSourceDetails, Source, SourceKind
+from sourcing.source.models import Source, SourceKind
 from sourcing.user.auth import get_current_active_user
 from sourcing.user.db import users_collection
 from sourcing.user.models import User
 
 router = APIRouter(
     prefix="/aspsps",
-    dependencies=[Depends(get_current_active_user)],
 )
 
 
@@ -32,9 +31,9 @@ async def list():
 
 @router.post("/auth", response_model=ASPSPAuthResponse)
 async def auth_to_aspsp(auth_to_aspsp: ASPSPAuthRequest):
-    aspsp = await aspsps_collection.find_one({"_id": ObjectId(auth_to_aspsp.aspsp_id)})
+    aspsp = await aspsps_collection.find_one({"_id": auth_to_aspsp.aspsp_id})
     if not aspsp:
-        return {"error": "ASPSP not found"}
+        raise HTTPException(status_code=404, detail="ASPSP not found")
     aspsp = ASPSP(**aspsp)
     return await eb.create_auth_session(
         name=aspsp.name,
@@ -76,7 +75,7 @@ async def create_session(
             found = True
             await users_collection.update_one(
                 {
-                    "_id": ObjectId(current_user.id),
+                    "_id": current_user.id,
                     "sources.details.eb_id_hash": source.details.eb_id_hash,
                 },
                 {"$set": {"sources.$": source.model_dump()}},
@@ -84,7 +83,7 @@ async def create_session(
 
         if not found:
             await users_collection.update_one(
-                {"_id": ObjectId(current_user.id)},
+                {"_id": current_user.id},
                 {"$push": {"sources": source.model_dump()}},
             )
     return {"status": "ok"}

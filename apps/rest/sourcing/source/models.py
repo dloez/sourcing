@@ -1,12 +1,12 @@
 from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
+from bson import ObjectId
 from pydantic import BaseModel, ConfigDict, Field, model_validator
-from pydantic.functional_validators import BeforeValidator
-from typing_extensions import Annotated
 
-PyObjectId = Annotated[str, BeforeValidator(str)]
+from sourcing.source.aspsp.models import ASPSPSourceDetails, ResponseASPSPSourceDetails
+from sourcing.source.crypto_wallet.models import CryptoWalletSourceDetails
+from sourcing.typing import PyObjectId
 
 
 class SourceKind(Enum):
@@ -19,32 +19,12 @@ class SourceKind(Enum):
         return super().__eq__(other)
 
 
-class ASPSPSourceDetails(BaseModel):
-    iban: Optional[str] = Field(default=None)
-    currency: str = Field(...)
-    name: str = Field(...)
-    eb_session: str = Field(...)
-    eb_uid: str = Field(...)
-    eb_id_hash: str = Field(...)
-
-
-class ResponseASPSPSourceDetails(BaseModel):
-    iban: str
-    currency: str
-    name: str
-
-
-class CryptoWalletSourceDetails(BaseModel):
-    wallet_address: str = Field(...)
-    coin: str = Field(...)
-
-
 class Balance(BaseModel):
     id: PyObjectId = Field(alias="_id", default=None)
-    amount: float = Field(...)
-    source_id: PyObjectId = Field(...)
+    amount: float = Field()
+    source_id: PyObjectId = Field()
     date: datetime = Field(default=datetime.now(tz=UTC))
-    name: str = Field(...)
+    name: str = Field()
 
     def to_nested(self) -> "NestedBalance":
         return NestedBalance(
@@ -55,14 +35,15 @@ class Balance(BaseModel):
 
 
 class NestedBalance(BaseModel):
-    amount: float = Field(...)
+    amount: float = Field()
     date: datetime = Field(default=datetime.now(tz=UTC))
-    name: str = Field(...)
+    name: str = Field()
 
 
 class Source(BaseModel):
-    kind: SourceKind = Field(...)
-    details: ASPSPSourceDetails | CryptoWalletSourceDetails = Field(...)
+    id: PyObjectId = Field(default_factory=ObjectId)
+    kind: SourceKind = Field()
+    details: ASPSPSourceDetails | CryptoWalletSourceDetails = Field()
     latest_balances: list[NestedBalance] = Field(default=[])
     model_config: ConfigDict = ConfigDict(use_enum_values=True)
 
