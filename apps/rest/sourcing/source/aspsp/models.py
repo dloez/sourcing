@@ -15,7 +15,7 @@ class ASPSPSourceDetails(BaseModel):
 
 
 class ResponseASPSPSourceDetails(BaseModel):
-    iban: str
+    iban: Optional[str]
     currency: str
     name: str
 

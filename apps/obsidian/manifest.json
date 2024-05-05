@@ -1,0 +1,9 @@
+{
+  "id": "sourcing-obsidian-plugin",
+  "name": "Sourcing",
+  "version": "1.0.0",
+  "minAppVersion": "0.15.0",
+  "description": "Obsidian plugin to interact with Sourcing",
+  "author": "David Lopez <info@dloez.dev>",
+  "isDesktopOnly": false
+}

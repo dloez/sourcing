@@ -35,7 +35,7 @@ async def auth_to_aspsp(auth_to_aspsp: ASPSPAuthRequest):
     if not aspsp:
         raise HTTPException(status_code=404, detail="ASPSP not found")
     aspsp = ASPSP(**aspsp)
-    return await eb.create_auth_session(
+    return await eb.init_auth_session(
         name=aspsp.name,
         country=aspsp.country,
         redirect_url=auth_to_aspsp.redirect_url,

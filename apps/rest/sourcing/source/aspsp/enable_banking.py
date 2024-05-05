@@ -49,7 +49,7 @@ class EnableBankingClient:
     async def get_aspsps(self, country_code: str):
         return await self._request("GET", f"{BASE_URL}/aspsps?country={country_code}")
 
-    async def create_auth_session(
+    async def init_auth_session(
         self, name: str, country: str, redirect_url: str, state: str = ""
     ):
         body = {
