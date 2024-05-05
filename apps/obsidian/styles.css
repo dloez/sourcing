@@ -1,0 +1,13 @@
+.login-form {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-label {
+  margin-top: 10px;
+  margin-bottom: 5px;
+}
+
+.button-container {
+  text-align: center;
+}

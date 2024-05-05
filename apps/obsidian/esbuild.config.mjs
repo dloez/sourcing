@@ -33,14 +33,18 @@ const context = await esbuild.context({
   plugins: [
     copy({
       resolveFrom: "cwd",
-      assets: {
-        from: ["./manifest.json", "./styles.css"],
-        to: [
-          "./sourcing-obsidian-plugin/manifest.json",
-          "./sourcing-obsidian-plugin/styles.css",
-        ],
-      },
-      watch: true,
+      assets: [
+        {
+          from: ["./manifest.json"],
+          to: ["./sourcing-obsidian-plugin/manifest.json"],
+          watch: true,
+        },
+        {
+          from: ["./styles.css"],
+          to: ["./sourcing-obsidian-plugin/styles.css"],
+          watch: true,
+        },
+      ],
     }),
   ],
 })

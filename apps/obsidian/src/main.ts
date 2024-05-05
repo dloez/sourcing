@@ -1,4 +1,11 @@
-import { Plugin, App, Modal, type PluginManifest, TFile } from "obsidian"
+import {
+  Plugin,
+  App,
+  Modal,
+  type PluginManifest,
+  TFile,
+  Notice,
+} from "obsidian"
 
 import {
   SourcingClient,
@@ -136,29 +143,52 @@ class LoginModal extends Modal {
 
   async onOpen() {
     const { contentEl } = this
-    contentEl.createEl("h2", { text: "Login" })
-    const form = contentEl.createEl("form")
-    form.createEl("label", { text: "Username:" }).createEl("input", {
-      attr: { type: "text", id: "username" },
-    })
-    form.createEl("label", { text: "Password:" }).createEl("input", {
-      attr: { type: "password", id: "password" },
-    })
-    form
-      .createEl("button", { text: "Submit" })
-      .addEventListener("click", async (event) => {
-        event.preventDefault()
-        const username = (form.querySelector("#username") as HTMLInputElement)
-          .value
-        const password = (form.querySelector("#password") as HTMLInputElement)
-          .value
 
-        const { access_token, refresh_token } = await client.getToken(
-          username,
-          password
-        )
-        await this.plugin.saveData({ access_token, refresh_token })
-      })
+    contentEl.createEl("h2", { text: "Sourcing - Login" })
+    const form = contentEl.createEl("form", { cls: "login-form" })
+
+    form.createEl("label", {
+      text: "Email:",
+      cls: "form-label",
+    })
+    form.createEl("input", {
+      attr: { type: "text", id: "username" },
+      cls: "form-input",
+    })
+
+    form.createEl("label", {
+      text: "Password:",
+      cls: "form-label",
+    })
+    form.createEl("input", {
+      attr: { type: "password", id: "password" },
+      cls: "form-input",
+    })
+
+    const buttonContainer = contentEl.createEl("div", {
+      cls: "button-container",
+    })
+    const submitButton = buttonContainer.createEl("button", {
+      text: "Submit",
+    })
+
+    submitButton.addEventListener("click", async (event) => {
+      event.preventDefault()
+      const username = (form.querySelector("#username") as HTMLInputElement)
+        .value
+      const password = (form.querySelector("#password") as HTMLInputElement)
+        .value
+
+      client
+        .getToken(username, password)
+        .then(async ({ access_token, refresh_token }) => {
+          await this.plugin.saveData({ access_token, refresh_token })
+          new Notice("Login successfull!", 500)
+        })
+        .catch((error) => {
+          new Notice("Login failed...")
+        })
+    })
   }
 
   onClose() {
